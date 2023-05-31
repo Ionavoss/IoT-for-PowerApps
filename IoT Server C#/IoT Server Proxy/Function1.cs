@@ -14,6 +14,7 @@ using System.Web.Http;
 using Microsoft.Azure.Devices.Common.Exceptions;
 using static Microsoft.Azure.Amqp.Serialization.SerializableType;
 using Microsoft.Azure.Amqp.Framing;
+using System.Text.RegularExpressions;
 
 class C2DMessage
 {
@@ -126,8 +127,85 @@ namespace IoTServer
             }
         }
 
-        // Helper
-        private static string GetConnectionString()
+        public static async Task<IActionResult> deletegetdevice(
+            [HttpTrigger(AuthorizationLevel.Function, "delete", "get", Route = "devices/{deviceId}")] HttpRequest req,
+            ILogger log, string deviceId)
+        {
+            var connectionString = GetConnectionString();
+
+            if (req.Method == HttpMethods.Delete)
+            {
+
+                var registryManager = RegistryManager.CreateFromConnectionString(connectionString);
+
+                try
+                {
+                    await registryManager.RemoveDeviceAsync(deviceId);
+                    var response = new { status = "Device deleted" };
+                    return new OkObjectResult(response) { StatusCode = 201 };
+                }
+                catch (Exception ex)
+                {
+                    bool isNotFound = Regex.IsMatch(ex.Message, @"\bErrorCode:DeviceNotFound\b", RegexOptions.IgnoreCase);
+                    if (isNotFound)
+                    {
+                        /* return device not found */
+                        var response = new { status = "Device not found" };
+                        return new OkObjectResult(response) { StatusCode = 204 };
+                    }
+                    else
+                    {
+                        var response = new { status = "Error" };
+                        return new BadRequestObjectResult(response) { StatusCode = 500 };
+                    }
+
+                }
+                finally
+                {
+                    await registryManager.CloseAsync();
+                }
+            }
+            else if (req.Method == HttpMethods.Get)
+            {
+                var registryManager = RegistryManager.CreateFromConnectionString(connectionString);
+                try
+                {
+                    // Check if the device exists
+                    Device device = await registryManager.GetDeviceAsync(deviceId);
+                    Console.WriteLine(device);
+                    if (device != null)
+                    {
+                        var idresponse = new { status = "Device exists" };
+                        return new OkObjectResult(idresponse){ StatusCode = 203 };
+                    } else
+                    {
+                        var idresponse = new { status = "Device not found" };
+                        return new OkObjectResult(idresponse){ StatusCode = 204 };
+                    }
+
+                    //return device != null;
+                }
+                catch (Exception ex)
+                {
+                    var idresponse = new { Status = ex.Message };
+                    return new OkObjectResult(idresponse) { StatusCode = 500 };
+
+                }
+                finally
+                {
+                    // Close the registry manager connection
+                    await registryManager.CloseAsync();
+                }
+            }
+            else
+            {
+                // Return a 405 Method Not Allowed response for unsupported methods
+                return new StatusCodeResult(StatusCodes.Status405MethodNotAllowed);
+            }
+        }
+
+            // Helper
+            private static string GetConnectionString()
         {
             // Retrieve the IoT Hub connection string from your configuration or secrets
             // You can store it in Azure Key Vault or any other secure location
