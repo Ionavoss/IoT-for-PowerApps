@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "IoT_Server_Proxy": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7253",
+      "launchBrowser": false
+    }
+  }
+}
