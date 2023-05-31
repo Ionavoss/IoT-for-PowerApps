@@ -1,17 +1,16 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy dotnet core app to Azure Function App - iotproxy
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'IoT Server C#/**'
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  DOTNET_VERSION: '6.0.x' # set this to the dotnet version to use
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'IoT Server C#'
+  DOTNET_VERSION: 'v6.0'
 
 jobs:
   build-and-deploy:
@@ -37,6 +36,6 @@ jobs:
         id: fa
         with:
           app-name: 'iotproxy'
-          slot-name: 'Production'
+          slot-name: 'production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_416A439356274B018BFF3E510FB3AE1D }}
+          publish-profile: ${{ secrets.AzureAppService_PublishProfile_64c4bfbaa3c24a2eb1e3ca143577aa1b }}
