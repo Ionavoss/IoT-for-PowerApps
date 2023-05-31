@@ -10,7 +10,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: 'IoT Server C#'
-  DOTNET_VERSION: 'v6.0'
+  DOTNET_VERSION: '6.0.x'
 
 jobs:
   build-and-deploy:
