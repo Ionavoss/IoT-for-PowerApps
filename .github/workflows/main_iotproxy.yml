@@ -38,4 +38,4 @@ jobs:
           app-name: 'iotproxy'
           slot-name: 'production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_AZUREAPPSERVICE_PUBLISHPROFILE_68B88E03F38D4CC19FAD7DF7DF86B459 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_68B88E03F38D4CC19FAD7DF7DF86B459 }}
