@@ -15,10 +15,19 @@ using Microsoft.Azure.Devices.Common.Exceptions;
 using static Microsoft.Azure.Amqp.Serialization.SerializableType;
 using Microsoft.Azure.Amqp.Framing;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
+using System.Net;
+using System.Collections.Generic;
+//using Newtonsoft.Json;
 
 class C2DMessage
 {
     public string message { get; set; }
+}
+
+class DeviceData
+{
+    public string deviceId { get; set; }
 }
 
 namespace IoTServer
@@ -176,11 +185,12 @@ namespace IoTServer
                     if (device != null)
                     {
                         var idresponse = new { status = "Device exists" };
-                        return new OkObjectResult(idresponse){ StatusCode = 203 };
-                    } else
+                        return new OkObjectResult(idresponse) { StatusCode = 203 };
+                    }
+                    else
                     {
                         var idresponse = new { status = "Device not found" };
-                        return new OkObjectResult(idresponse){ StatusCode = 204 };
+                        return new OkObjectResult(idresponse) { StatusCode = 204 };
                     }
 
                     //return device != null;
@@ -204,8 +214,83 @@ namespace IoTServer
             }
         }
 
-            // Helper
-            private static string GetConnectionString()
+        [FunctionName("GetDevices")]
+        public static async Task<IActionResult> GetDevices(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "devices")] HttpRequest req,
+            ILogger log)
+        {
+            log.LogInformation("C# HTTP trigger function processed a request. Get all devices");
+            string connectionString = GetConnectionString();
+            RegistryManager registryManager = RegistryManager.CreateFromConnectionString(connectionString);
+            try
+            {
+                var query = registryManager.CreateQuery("SELECT * FROM devices");
+                var twins = await query.GetNextAsTwinAsync();
+                var deviceList = new List<DeviceData>();
+                foreach (var twin in twins)
+                {
+                    deviceList.Add(new DeviceData { deviceId = twin.DeviceId });
+                }
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+                var json = JsonSerializer.Serialize(deviceList, options);
+                return new OkObjectResult(json) { StatusCode = 200 };
+            }
+            catch (Exception ex)
+            {
+                var connectionstringResponse = new { Status = ex.Message };
+                return new OkObjectResult(connectionstringResponse) { StatusCode = 500 };
+            }
+            finally
+            {
+                await registryManager.CloseAsync();
+            }
+
+        }
+
+        [FunctionName("GetDeviceConnection")]
+        public static async Task<IActionResult> GetDeviceConnection(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "devices/device/{deviceId}/connection/connectionstring")] HttpRequest req,
+            ILogger log, string deviceId)
+        {
+            log.LogInformation("C# HTTP trigger function processed a request. get connection string");
+
+            var connectionString = GetConnectionString();
+            RegistryManager registryManager = RegistryManager.CreateFromConnectionString(connectionString);
+            try
+            {
+                var device = await registryManager.GetDeviceAsync(deviceId);
+                if (device == null)
+                {
+                    var errorMessage = new { status = "Device not exist" };
+                    return new OkObjectResult(errorMessage) { StatusCode = 204 };
+                }
+
+                int startIndex = connectionString.IndexOf('=') + 1;
+                int endIndex = connectionString.IndexOf('.', startIndex);
+                string Hostname = connectionString.Substring(startIndex, endIndex - startIndex);
+
+
+                string primaryKey = device.Authentication.SymmetricKey.PrimaryKey;
+                string secondaryKey = device.Authentication.SymmetricKey.SecondaryKey;
+                var primaryString = "Hostname=" + Hostname + ".azure-devices.net;DeviceId=" + deviceId + ";SharedAccesKey=" + primaryKey;
+                var secondaryString = "Hostname=" + Hostname + ".azure-devices.net;DeviceId=" + deviceId + ";SharedAccesKey=" + secondaryKey; ;
+
+                var responseMessage = new { device = deviceId, primary = primaryString, secondary = secondaryString };
+                return new OkObjectResult(responseMessage) { StatusCode = 200 };
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = new { Status = ex.Message };
+                return new OkObjectResult(errorMessage) { StatusCode = 500 };
+            }
+        }
+
+        // Helper
+        private static string GetConnectionString()
         {
             // Retrieve the IoT Hub connection string from your configuration or secrets
             // You can store it in Azure Key Vault or any other secure location
